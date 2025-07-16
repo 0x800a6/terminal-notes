@@ -12,6 +12,7 @@ from rich.align import Align
 NOTES_DIR = os.path.expanduser("~/.terminal_notes")
 CONFIG_FILE = os.path.join(NOTES_DIR, "config.json")
 INDEX_FILE = os.path.join(NOTES_DIR, "index.json")
+TEMPLATE_FILE = os.path.join(NOTES_DIR, "TEMPLATE.md")
 
 DEFAULT_CONFIG = {
     "editor": os.getenv("EDITOR", "nano"),
@@ -27,6 +28,25 @@ DEFAULT_CONFIG = {
     "storage": NOTES_DIR,
 }
 
+DEFAULT_TEMPLATE = """---
+title: {title}
+description: {description}
+created_at: {created_at}
+updated_at: {updated_at}
+---
+
+# {title}
+
+## Notes
+
+Write your notes here.
+
+```python
+# Example code block
+print('Hello, world!')
+```
+"""
+
 def ensure_dirs():
     os.makedirs(NOTES_DIR, exist_ok=True)
     if not os.path.exists(INDEX_FILE):
@@ -35,6 +55,9 @@ def ensure_dirs():
     if not os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, "w") as f:
             json.dump(DEFAULT_CONFIG, f, indent=2)
+    if not os.path.exists(TEMPLATE_FILE):
+        with open(TEMPLATE_FILE, "w") as f:
+            f.write(DEFAULT_TEMPLATE)
 
 def load_index():
     with open(INDEX_FILE, "r") as f:
@@ -48,11 +71,31 @@ def load_config():
     with open(CONFIG_FILE, "r") as f:
         return json.load(f)
 
-def create_note(title, config=None):
+def load_template():
+    """Load and return the template content, falling back to default if file doesn't exist."""
+    try:
+        with open(TEMPLATE_FILE, "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        return DEFAULT_TEMPLATE
+
+def format_template(template_content, title, description, timestamp):
+    """Format the template with the provided values."""
+    current_time = datetime.datetime.now()
+    return template_content.format(
+        title=title,
+        description=description,
+        created_at=timestamp,
+        updated_at=timestamp
+    )
+
+def create_note(title, description="", config=None):
     if config is None:
         config = load_config()
     if not title or title.strip() == "":
         raise ValueError("Title cannot be empty")
+    if not description or description.strip() == "":
+        raise ValueError("Description cannot be empty")
     
     files = os.listdir(NOTES_DIR)
     if len(files) >= config.get("max_notes", DEFAULT_CONFIG["max_notes"]):
@@ -63,8 +106,13 @@ def create_note(title, config=None):
     filepath = os.path.join(config.get("storage", NOTES_DIR), filename)
     if os.path.exists(filepath):
         raise FileExistsError(f"Note with title '{title}' already exists.")
+    
+    # Load and format the template
+    template_content = load_template()
+    note_content = format_template(template_content, title, description, timestamp)
+    
     with open(filepath, "w") as f:
-        f.write(f"# {title}\n\n## Notes\n\nWrite your notes here.\n\n```python\n# Example code block\nprint('Hello, world!')\n```")
+        f.write(note_content)
     index = load_index()
     index[filename] = {
         "title": title,
@@ -144,14 +192,39 @@ def display_notes(stdscr):
             break
         elif k == ord('n'):
             curses.echo()
-            stdscr.addstr(height - 1, 0, "Enter title: ")
-            title = stdscr.getstr().decode()
+            while True:
+                stdscr.clear()
+                stdscr.addstr(0, 0, "Create New Note")
+                stdscr.addstr(1, 0, "─" * 20)
+                stdscr.addstr(3, 0, "Enter title: ")
+                title = stdscr.getstr().decode()
+                
+                if not title or title.strip() == "":
+                    stdscr.addstr(5, 0, "Error: Title cannot be empty. Press any key to try again...")
+                    stdscr.getch()
+                    continue
+                
+                stdscr.addstr(4, 0, "Enter description: ")
+                description = stdscr.getstr().decode()
+                
+                if not description or description.strip() == "":
+                    stdscr.addstr(6, 0, "Error: Description cannot be empty. Press any key to try again...")
+                    stdscr.getch()
+                    continue
+                
+                break
+            
             curses.noecho()
-            fname = create_note(title, config)
-            edit_note(fname, config)
-            index = load_index()
-            notes = list(index.items())[::-1]
-            cursor = 0
+            
+            try:
+                fname = create_note(title, description, config)
+                edit_note(fname, config)
+                index = load_index()
+                notes = list(index.items())[::-1]
+                cursor = 0
+            except Exception as e:
+                stdscr.addstr(height - 1, 0, f"Error: {str(e)}. Press any key to continue...")
+                stdscr.getch()
         elif k == ord('d') and notes:
             delete_note(notes[cursor][0])
             index = load_index()

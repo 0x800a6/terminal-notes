@@ -13,6 +13,7 @@ Built with `curses` and `rich` for a clean and efficient terminal UI.
 - Customizable theme and config (colors, editor, etc)
 - Live Markdown preview with rich formatting
 - Optional note limit to manage clutter
+- **Customizable note templates** with frontmatter support
 
 ---
 
@@ -93,6 +94,28 @@ You can change:
 
 ---
 
+## 📝 Custom Templates
+
+The app supports customizable note templates. On first run, a default template is created at:
+
+```
+~/.terminal_notes/TEMPLATE.md
+```
+
+You can find the default template at [`TEMPLATE.md`](TEMPLATE.md).
+
+
+### Template Variables:
+
+- `{title}` - The note title you enter
+- `{description}` - The note description you enter (required)
+- `{created_at}` - Timestamp when the note was created
+- `{updated_at}` - Same as created_at (for future use)
+
+You can customize this template file to match your preferred note structure, add custom frontmatter, or include default sections that fit your workflow.
+
+---
+
 ## 📁 Storage Structure
 
 All notes and configs live in `~/.terminal_notes/`:
@@ -101,6 +124,7 @@ All notes and configs live in `~/.terminal_notes/`:
 ~/.terminal_notes/
 ├── index.json           # Metadata index
 ├── config.json          # Config file
+├── TEMPLATE.md          # Note template (customizable)
 └── 2024-07-16_13-23.md  # Individual notes
 ```
 
