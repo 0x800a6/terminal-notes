@@ -60,7 +60,7 @@ def create_note(title, config=None):
 
     timestamp = datetime.datetime.now().strftime(config.get("date_format", "%Y-%m-%d_%H-%M-%S"))
     filename = f"{timestamp}.md"
-    filepath = os.path.join(config["storage"], filename)
+    filepath = os.path.join(config.get("storage", NOTES_DIR), filename)
     if os.path.exists(filepath):
         raise FileExistsError(f"Note with title '{title}' already exists.")
     with open(filepath, "w") as f:
